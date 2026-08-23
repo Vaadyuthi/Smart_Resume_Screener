@@ -36,7 +36,8 @@ Rules:
 
 ---
 
-## Quickstart
+## **Quickstart**
+
 1. Install Dependencies
 Bash
 python -m venv .venv
