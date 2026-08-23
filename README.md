@@ -36,27 +36,23 @@ Rules:
 
 ---
 
-## **Quickstart**
+## Quickstart
 
 1. Install Dependencies
-Bash
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1   # Linux/Mac: source .venv/bin/activate
 pip install -r requirements.txt
 
 2. Configure Environment (.env)
-Code snippet
 LLM_API_KEY=your_groq_api_key_here
 LLM_BASE_URL=[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)
 LLM_MODEL=llama-3.1-8b-instant
 DATABASE_URL=sqlite:///./resume_screener.db
 
 3. Populate Database & Launch
-Bash
 python scripts/generate_dataset.py 100
 
 # Start server
 uvicorn app.main:app --reload --port 8000
 Web App: http://127.0.0.1:8000
-
 Swagger Docs: http://127.0.0.1:8000/docs
