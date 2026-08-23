@@ -1,0 +1,28 @@
+Python Backend / AI Engineer
+
+We are looking for a software engineer
+with strong Python development skills
+and experience building REST APIs.
+
+Candidates should have experience with:
+
+Python
+FastAPI or Flask
+SQL databases
+Git
+Docker
+Machine Learning
+Generative AI
+
+Experience with cloud platforms
+and RAG/LLM applications is a plus.
+
+Responsibilities:
+
+- Build scalable backend APIs
+- Work with SQL databases
+- Integrate AI/ML capabilities
+- Write clean Python code
+- Develop REST APIs
+- Collaborate using Git
+- Build production-ready applications

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Resume Screener</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div>
+      <div class="brand">
+        <h2>✦ Smart Resume Screener</h2>
+        <p>AI-Powered Candidate Screening</p>
+      </div>
+
+      <nav class="nav-links">
+        <a class="nav-item active" id="nav-dashboard" onclick="showSection('dashboard')">Dashboard</a>
+        <a class="nav-item" id="nav-resumes" onclick="showSection('resumes')">Resumes</a>
+        <a class="nav-item" id="nav-screen" onclick="showSection('screen')">Screen Candidates</a>
+      </nav>
+    </div>
+
+    <div class="system-status">
+      <div class="status-badge">
+        <span class="status-dot"></span> LLM Connected
+      </div>
+      <div>Model: <strong>llama-3.1-8b-instant</strong></div>
+      <div style="color: var(--text-muted); margin-top: 4px;">Provider: Groq Cloud</div>
+    </div>
+  </aside>
+
+  <div class="main-wrapper">
+    <header class="topbar">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search candidates, skills..." onkeyup="filterResumes()">
+      </div>
+      <div class="topbar-actions">
+        <input type="file" id="fileUploadInput" multiple style="display:none" onchange="handleFileUpload(event)">
+        <button class="btn-primary" onclick="document.getElementById('fileUploadInput').click()">+ Upload Resumes</button>
+      </div>
+    </header>
+
+    <main class="content-area">
+      <!-- 1. DASHBOARD SECTION -->
+      <section id="dashboardSection">
+        <div class="header-title">
+          <h1>Dashboard</h1>
+          <p>Candidate screening statistics and summary overview</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="label">Total Ingested Resumes</div>
+            <div class="value" id="totalResumesCount">0</div>
+            <div class="subtext">↑ Loaded in database</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Supported Formats</div>
+            <div class="value">PDF / TXT / MD</div>
+            <div class="subtext">Automated Text Parser</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Screening Engine</div>
+            <div class="value">Hybrid AI</div>
+            <div class="subtext">Deterministic + Groq LLM</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Quick Action</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+            Jump straight to screening candidate resumes against any custom Job Description.
+          </p>
+          <button class="btn-primary" onclick="showSection('screen')">Go to Screen Candidates →</button>
+        </div>
+      </section>
+
+      <!-- 2. SCREEN CANDIDATES SECTION -->
+      <section id="screenSection" style="display:none;">
+        <div class="header-title">
+          <h1>Screen Candidates</h1>
+          <p>Rank and evaluate all candidate resumes against job requirements</p>
+        </div>
+
+        <div class="panel">
+          <h3>Job Description Requirements</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">
+            Paste your complete job description below (roles, technical skills, years of experience):
+          </p>
+          <textarea id="jobDescInput" rows="7" placeholder="Paste full Job Description here..."></textarea>
+          <div style="margin-top: 14px; display: flex; gap: 10px;">
+            <button class="btn-primary" id="screenBtn" onclick="runScreening()">Run Screening Match</button>
+            <button class="btn-primary" style="background: var(--bg-hover); color: var(--text-main);" onclick="loadSampleJD()">Paste Sample Python JD</button>
+          </div>
+        </div>
+
+        <div class="panel" id="resultsPanel" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3>Evaluation Results</h3>
+            <span id="resultsCountBadge" style="font-size: 0.85rem; color: var(--accent);"></span>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Score</th>
+                <th>Recommendation</th>
+                <th>Key Strengths</th>
+                <th>Missing Gaps</th>
+              </tr>
+            </thead>
+            <tbody id="resultsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 3. RESUMES LIST SECTION -->
+      <section id="resumesSection" style="display:none;">
+        <div class="header-title">
+          <h1>Ingested Resumes</h1>
+          <p>All candidate profiles currently loaded in the database</p>
+        </div>
+        <div class="panel">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Candidate Name</th>
+                <th>Email</th>
+                <th>Extracted Skills</th>
+              </tr>
+            </thead>
+            <tbody id="resumesTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let allResumes = [];
+
+    async function loadResumes() {
+      try {
+        const res = await fetch('/api/resumes');
+        allResumes = await res.json();
+        const countEl = document.getElementById('totalResumesCount');
+        if (countEl) countEl.innerText = allResumes.length;
+        renderResumesTable(allResumes);
+      } catch (err) {
+        console.error("Error loading resumes:", err);
+      }
+    }
+
+    function renderResumesTable(list) {
+      const tbody = document.getElementById('resumesTableBody');
+      if (!tbody) return;
+      
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No resumes found in database. Upload some or run the generator script.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(r => `
+        <tr>
+          <td>#${r.id}</td>
+          <td><strong>${r.name || 'Unknown Candidate'}</strong></td>
+          <td>${r.email || 'N/A'}</td>
+          <td>${(r.skills || []).map(s => `<span class="tag">${s}</span>`).join('')}</td>
+        </tr>
+      `).join('');
+    }
+
+    function showSection(name) {
+      document.getElementById('dashboardSection').style.display = (name === 'dashboard') ? 'block' : 'none';
+      document.getElementById('resumesSection').style.display = (name === 'resumes') ? 'block' : 'none';
+      document.getElementById('screenSection').style.display = (name === 'screen') ? 'block' : 'none';
+
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const activeNav = document.getElementById(`nav-${name}`);
+      if (activeNav) activeNav.classList.add('active');
+
+      if (name === 'resumes' || name === 'dashboard') loadResumes();
+    }
+
+    function loadSampleJD() {
+      document.getElementById('jobDescInput').value = `Job Title: Python Backend Engineer\n\nKey Requirements:\n- Strong core Python, FastAPI, and Flask development.\n- Experience designing RESTful APIs and microservices.\n- Database proficiency with SQL, PostgreSQL, MySQL, and Redis caching.\n- Containerization experience with Docker, Git, and Linux environments.\n- Degree in Computer Science, IT, or equivalent engineering field.`;
+    }
+
+    async function runScreening() {
+      const jd = document.getElementById('jobDescInput').value.trim();
+      if (!jd || jd.length < 20) {
+        return alert("Please enter a detailed job description (minimum 20 characters).");
+      }
+
+      const btn = document.getElementById('screenBtn');
+      const originalText = btn.innerText;
+      btn.innerText = "Screening candidates...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/screen', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job_description: jd })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to screen candidates");
+
+        document.getElementById('resultsPanel').style.display = 'block';
+        document.getElementById('resultsCountBadge').innerText = `Screened ${data.count} candidates`;
+
+        const tbody = document.getElementById('resultsTableBody');
+        tbody.innerHTML = (data.results || []).map(r => {
+          const score = typeof r.score === 'number' ? r.score : 0;
+          const scoreCls = score >= 7.5 ? 'score-high' : (score >= 5 ? 'score-med' : 'score-low');
+          const strengths = Array.isArray(r.strengths) ? r.strengths : [];
+          const gaps = Array.isArray(r.gaps) ? r.gaps : [];
+
+          return `
+            <tr>
+              <td><strong>${r.candidate_name || 'Candidate'}</strong></td>
+              <td><span class="score-badge ${scoreCls}">${score.toFixed(1)} / 10</span></td>
+              <td><strong>${r.recommendation || 'N/A'}</strong></td>
+              <td>${strengths.slice(0, 3).map(s => `<div>• ${s}</div>`).join('') || 'None'}</td>
+              <td>${gaps.slice(0, 3).map(g => `<div>• ${g}</div>`).join('') || 'None'}</td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (err) {
+        alert("Screening Error: " + err.message);
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    async function handleFileUpload(e) {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      let successCount = 0;
+      for (let file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const res = await fetch('/api/resumes', { method: 'POST', body: formData });
+          if (res.ok) successCount++;
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      e.target.value = '';
+      await loadResumes();
+      alert(`Upload complete: ${successCount} resumes added.`);
+    }
+
+    function filterResumes() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = allResumes.filter(r => 
+        (r.name && r.name.toLowerCase().includes(q)) || 
+        (r.skills && r.skills.some(s => s.toLowerCase().includes(q)))
+      );
+      renderResumesTable(filtered);
+    }
+
+    window.onload = loadResumes;
+  </script>
+</body>
+</html>
